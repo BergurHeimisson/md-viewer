@@ -78,16 +78,18 @@ public class MarkdownRenderer {
      * limited HTML engine (which ignores em/rem).
      */
     private String buildCss() {
-        final String bg       = App.COLOR_BG;
-        final String fg       = App.COLOR_FG;
-        final String comment  = App.COLOR_COMMENT;
-        final String cyan     = App.COLOR_CYAN;
-        final String green    = App.COLOR_GREEN;
-        final String orange   = App.COLOR_ORANGE;
-        final String pink     = App.COLOR_PINK;
-        final String purple   = App.COLOR_PURPLE;
-        final String current  = App.COLOR_CURRENT;
-        final String yellow   = App.COLOR_YELLOW;
+        final ColorScheme c = App.colors;
+        final String bg      = c.bg;
+        final String fg      = c.fg;
+        final String surface = c.surface;
+        final String muted   = c.muted;
+        final String heading = c.heading;
+        final String link    = c.link;
+        final String code    = c.code;
+        final String bold    = c.bold;
+        final String italic  = c.italic;
+        final String accent  = c.accent;
+        final String del     = c.del;
 
         return "body {\n"
              + "  background-color: " + bg + ";\n"
@@ -100,25 +102,25 @@ public class MarkdownRenderer {
              + "  max-width: 860px;\n"
              + "}\n"
 
-             // Headings — Dracula pink/purple gradient via individual colours
+             // Headings
              + "h1, h2, h3, h4, h5, h6 {\n"
-             + "  color: " + purple + ";\n"
+             + "  color: " + heading + ";\n"
              + "  font-weight: 600;\n"
              + "  margin-top: 0.4em;\n"
              + "  margin-bottom: 0.4em;\n"
              + "}\n"
-             + "h1 { font-size: 2em; color: " + fg + "; border-bottom: 2px solid " + current + "; padding-bottom: 0.25em; }\n"
-             + "h2 { font-size: 1.5em; border-bottom: 1px solid " + current + "; padding-bottom: 0.2em; }\n"
+             + "h1 { font-size: 2em; color: " + fg + "; border-bottom: 2px solid " + surface + "; padding-bottom: 0.25em; }\n"
+             + "h2 { font-size: 1.5em; border-bottom: 1px solid " + surface + "; padding-bottom: 0.2em; }\n"
              + "h3 { font-size: 1.25em; }\n"
 
              // Links
-             + "a { color: " + cyan + "; text-decoration: none; }\n"
+             + "a { color: " + link + "; text-decoration: none; }\n"
              + "a:hover { text-decoration: underline; }\n"
 
              // Inline code
              + "code {\n"
-             + "  background-color: " + current + ";\n"
-             + "  color: " + green + ";\n"
+             + "  background-color: " + surface + ";\n"
+             + "  color: " + code + ";\n"
              + "  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;\n"
              + "  font-size: 0.875em;\n"
              + "  padding: 2px 5px;\n"
@@ -127,8 +129,8 @@ public class MarkdownRenderer {
 
              // Fenced code blocks
              + "pre {\n"
-             + "  background-color: " + current + ";\n"
-             + "  color: " + green + ";\n"
+             + "  background-color: " + surface + ";\n"
+             + "  color: " + code + ";\n"
              + "  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;\n"
              + "  font-size: 0.875em;\n"
              + "  padding: 16px 20px;\n"
@@ -144,10 +146,10 @@ public class MarkdownRenderer {
 
              // Blockquotes
              + "blockquote {\n"
-             + "  border-left: 4px solid " + comment + ";\n"
+             + "  border-left: 4px solid " + muted + ";\n"
              + "  margin: 1em 0;\n"
              + "  padding: 4px 20px;\n"
-             + "  color: " + comment + ";\n"
+             + "  color: " + muted + ";\n"
              + "}\n"
 
              // Tables
@@ -157,30 +159,30 @@ public class MarkdownRenderer {
              + "  margin: 1em 0;\n"
              + "}\n"
              + "th {\n"
-             + "  background-color: " + current + ";\n"
-             + "  color: " + pink + ";\n"
+             + "  background-color: " + surface + ";\n"
+             + "  color: " + accent + ";\n"
              + "  padding: 8px 12px;\n"
              + "  text-align: left;\n"
-             + "  border-bottom: 2px solid " + comment + ";\n"
+             + "  border-bottom: 2px solid " + muted + ";\n"
              + "}\n"
              + "td {\n"
              + "  padding: 7px 12px;\n"
-             + "  border-bottom: 1px solid " + current + ";\n"
+             + "  border-bottom: 1px solid " + surface + ";\n"
              + "}\n"
-             + "tr:hover { background-color: " + current + "; }\n"
+             + "tr:hover { background-color: " + surface + "; }\n"
 
              // Horizontal rule
-             + "hr { border: none; border-top: 1px solid " + current + "; margin: 2em 0; }\n"
+             + "hr { border: none; border-top: 1px solid " + surface + "; margin: 2em 0; }\n"
 
              // Strikethrough (from GFM extension)
-             + "del { color: " + comment + "; }\n"
+             + "del { color: " + del + "; }\n"
 
              // Lists
              + "ul, ol { padding-left: 1.8em; }\n"
              + "li { margin: 0.3em 0; }\n"
 
              // Strong / em
-             + "strong { color: " + orange + "; font-weight: 700; }\n"
-             + "em { color: " + yellow + "; font-style: italic; }\n";
+             + "strong { color: " + bold + "; font-weight: 700; }\n"
+             + "em { color: " + italic + "; font-style: italic; }\n";
     }
 }

@@ -1,5 +1,6 @@
 package com.mdviewer;
 
+import com.formdev.flatlaf.util.SystemFileChooser;
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.text.html.HTMLEditorKit;
@@ -66,8 +67,8 @@ public class MainWindow extends JFrame {
         editorPane.setEditorKit(kit);
 
         // Match editor background to Dracula so there is no flash of white
-        editorPane.setBackground(Color.decode(App.COLOR_BG));
-        editorPane.setForeground(Color.decode(App.COLOR_FG));
+        editorPane.setBackground(App.colors.awtBg());
+        editorPane.setForeground(App.colors.awtFg());
 
         // Open hyperlinks in the system browser
         editorPane.addHyperlinkListener(e -> {
@@ -93,7 +94,7 @@ public class MainWindow extends JFrame {
         // Root panel — gives us a coloured background behind the scroll pane
         // ------------------------------------------------------------------ //
         JPanel root = new JPanel(new BorderLayout());
-        root.setBackground(Color.decode(App.COLOR_BG));
+        root.setBackground(App.colors.awtBg());
         root.add(scrollPane, BorderLayout.CENTER);
         setContentPane(root);
 
@@ -183,13 +184,13 @@ public class MainWindow extends JFrame {
     private void showPlaceholder() {
         // Build a centred placeholder directly as HTML matching the Dracula theme
         String html = "<!DOCTYPE html><html><head><style>"
-                + "body { background:" + App.COLOR_BG + "; margin:0; padding:0; height:100%; }"
+                + "body { background:" + App.colors.bg + "; margin:0; padding:0; height:100%; }"
                 + "div.wrap { display:table; width:100%; height:100%; }"
                 + "div.cell { display:table-cell; text-align:center; vertical-align:middle; }"
                 + "p.icon { font-size:64px; margin:0 0 16px; }"
-                + "p.main { color:" + App.COLOR_FG + "; font-family:sans-serif; "
+                + "p.main { color:" + App.colors.fg + "; font-family:sans-serif; "
                 +          "font-size:22px; margin:0 0 10px; font-weight:600; }"
-                + "p.sub  { color:" + App.COLOR_COMMENT + "; font-family:sans-serif; "
+                + "p.sub  { color:" + App.colors.muted + "; font-family:sans-serif; "
                 +          "font-size:14px; margin:0; }"
                 + "</style></head><body>"
                 + "<div class='wrap'><div class='cell'>"
@@ -217,7 +218,7 @@ public class MainWindow extends JFrame {
                             dtde.acceptDrag(DnDConstants.ACTION_COPY);
                             // Subtle visual feedback — slightly highlight the border
                             scrollPane.setBorder(BorderFactory.createLineBorder(
-                                    Color.decode(App.COLOR_PURPLE), 2));
+                                    App.colors.awtHeading(), 2));
                         } else {
                             dtde.rejectDrag();
                         }
@@ -332,15 +333,14 @@ public class MainWindow extends JFrame {
     }
 
     private void openFileDialog() {
-        JFileChooser chooser = new JFileChooser();
+        SystemFileChooser chooser = new SystemFileChooser();
         chooser.setDialogTitle("Open Markdown File");
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+        chooser.setFileFilter(new SystemFileChooser.FileNameExtensionFilter(
                 "Markdown files (*.md, *.markdown)", "md", "markdown"));
         if (currentFile != null) {
             chooser.setCurrentDirectory(currentFile.getParentFile());
         }
-        int result = chooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
+        if (chooser.showOpenDialog(this) == SystemFileChooser.APPROVE_OPTION) {
             openFile(chooser.getSelectedFile());
         }
     }

@@ -21,18 +21,8 @@ public class App {
     static final String PREF_WIDTH  = "window.width";
     static final String PREF_HEIGHT = "window.height";
 
-    // Dracula colour palette used by the custom HTML stylesheet
-    static final String COLOR_BG        = "#282a36";
-    static final String COLOR_CURRENT   = "#44475a";
-    static final String COLOR_FG        = "#f8f8f2";
-    static final String COLOR_COMMENT   = "#6272a4";
-    static final String COLOR_CYAN      = "#8be9fd";
-    static final String COLOR_GREEN     = "#50fa7b";
-    static final String COLOR_ORANGE    = "#ffb86c";
-    static final String COLOR_PINK      = "#ff79c6";
-    static final String COLOR_PURPLE    = "#bd93f9";
-    static final String COLOR_RED       = "#ff5555";
-    static final String COLOR_YELLOW    = "#f1fa8c";
+    /** Active colour scheme — loaded once at startup, readable app-wide. */
+    static ColorScheme colors;
 
     public static void main(String[] args) {
         // Resolve file argument before touching the EDT
@@ -43,6 +33,12 @@ public class App {
         } else {
             initialFile = null;
         }
+
+        // Load colour scheme (user config file, or Dracula defaults)
+        colors = ColorScheme.load();
+
+        // Use native file chooser whenever the platform supports it
+        System.setProperty("flatlaf.useSystemFileChooser", "true");
 
         // Install FlatLaf Dracula theme before any component is created
         FlatLaf.registerCustomDefaultsSource("com.mdviewer");
