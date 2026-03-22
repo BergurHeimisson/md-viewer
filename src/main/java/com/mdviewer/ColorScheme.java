@@ -34,17 +34,17 @@ import java.util.Properties;
 public class ColorScheme {
 
     // ── Dracula defaults ─────────────────────────────────────────────────────
-    private static final String D_BG      = "#282a36";
-    private static final String D_FG      = "#f8f8f2";
-    private static final String D_SURFACE = "#44475a";
-    private static final String D_MUTED   = "#6272a4";
-    private static final String D_HEADING = "#bd93f9";
-    private static final String D_LINK    = "#8be9fd";
-    private static final String D_CODE    = "#50fa7b";
-    private static final String D_BOLD    = "#ffb86c";
-    private static final String D_ITALIC  = "#f1fa8c";
-    private static final String D_ACCENT  = "#ff79c6";
-    private static final String D_DEL     = "#ff5555";
+    private static final String D_BG      = "#242424";
+    private static final String D_FG      = "#E0E0E0";
+    private static final String D_SURFACE = "#444444";
+    private static final String D_MUTED   = "#888888";
+    private static final String D_HEADING = "#B0B0B0";
+    private static final String D_LINK    = "#B0B0B0";
+    private static final String D_CODE    = "#E0E0E0";
+    private static final String D_BOLD    = "#E0E0E0";
+    private static final String D_ITALIC  = "#B0B0B0";
+    private static final String D_ACCENT  = "#E0E0E0";
+    private static final String D_DEL     = "#888888";
 
     // ── Public colour values ─────────────────────────────────────────────────
     public final String bg;
