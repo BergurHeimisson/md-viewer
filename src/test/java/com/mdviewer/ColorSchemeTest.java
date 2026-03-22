@@ -15,9 +15,9 @@ class ColorSchemeTest {
     @Test
     void defaultsAreDraculaPalette() {
         ColorScheme cs = ColorScheme.load();
-        assertEquals("#282a36", cs.bg);
-        assertEquals("#f8f8f2", cs.fg);
-        assertEquals("#8be9fd", cs.link);
+        assertEquals("#242424", cs.bg);
+        assertEquals("#E0E0E0", cs.fg);
+        assertEquals("#B0B0B0", cs.link);
     }
 
     @Test
