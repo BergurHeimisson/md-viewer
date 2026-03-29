@@ -25,8 +25,8 @@ A minimalistic Java Swing application for viewing Markdown files with a Dracula-
 Clone the repo and run the install script:
 
 ```sh
-git clone https://github.com/BergurHeimisson/mdViewer.git
-cd mdViewer
+git clone https://github.com/BergurHeimisson/md-viewer.git
+cd md-viewer
 ./install.sh
 ```
 
