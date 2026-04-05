@@ -5,7 +5,7 @@
 #   /usr/local/lib/mdviewer/mdviewer.jar  (the fat JAR)
 #   /usr/local/bin/mdviewer               (symlink to the launcher script)
 #
-# Requires: Java 17+, Maven 3.6+
+# Requires: Java 25+, Maven 3.6+
 # Uninstall: sudo rm -rf /usr/local/lib/mdviewer /usr/local/bin/mdviewer
 
 set -e
@@ -28,6 +28,7 @@ sudo cp mdviewer "$LIB_DIR/mdviewer"
 sudo chmod +x "$LIB_DIR/mdviewer"
 
 echo "==> Linking to $BIN_DIR/mdviewer..."
+sudo mkdir -p "$BIN_DIR"
 sudo ln -sf "$LIB_DIR/mdviewer" "$BIN_DIR/mdviewer"
 
 echo ""
