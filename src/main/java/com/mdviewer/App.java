@@ -7,6 +7,10 @@ import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.prefs.Preferences;
 
 /**
@@ -39,6 +43,11 @@ public class App {
         // Load colour scheme (user config file, or Dracula defaults)
         colors = ColorScheme.load();
 
+        if (GraphicsEnvironment.isHeadless()) {
+            runHeadless(initialFile);
+            return;
+        }
+
         // Use native file chooser whenever the platform supports it
         System.setProperty("flatlaf.useSystemFileChooser", "true");
 
@@ -61,5 +70,37 @@ public class App {
                 window.openFile(initialFile);
             }
         });
+    }
+
+    private static void runHeadless(File file) {
+        if (file == null) {
+            System.err.println("Usage: mdviewer <file.md>");
+            System.exit(1);
+        }
+
+        String markdown;
+        try {
+            markdown = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            System.err.println("Cannot read file: " + file);
+            System.exit(1);
+            return;
+        }
+
+        String ansiOutput = new TerminalRenderer().render(markdown);
+
+        try {
+            Process pager = new ProcessBuilder("less", "-R")
+                    .redirectInput(ProcessBuilder.Redirect.PIPE)
+                    .inheritIO()
+                    .redirectInput(ProcessBuilder.Redirect.PIPE)
+                    .start();
+            try (OutputStream stdin = pager.getOutputStream()) {
+                stdin.write(ansiOutput.getBytes(StandardCharsets.UTF_8));
+            }
+            System.exit(pager.waitFor());
+        } catch (IOException | InterruptedException e) {
+            System.out.print(ansiOutput);
+        }
     }
 }
