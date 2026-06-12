@@ -58,8 +58,7 @@ public class TerminalRenderer {
                     sb.append(AnsiColor.RESET).append("\n\n");
                 }
                 default -> {
-                    sb.append(AnsiColor.PURPLE_BOLD);
-                    sb.append("### ");
+                    sb.append(AnsiColor.PURPLE_BOLD).append("▸ ");
                     visitChildren(heading);
                     sb.append(AnsiColor.RESET).append("\n\n");
                 }
@@ -271,6 +270,18 @@ public class TerminalRenderer {
         @Override
         public void visit(Text text) {
             sb.append(text.getLiteral());
+        }
+
+        @Override
+        public void visit(HtmlInline htmlInline) {
+            // Preserve raw markup literally (e.g. <min>, <max>) instead of dropping it.
+            sb.append(htmlInline.getLiteral());
+        }
+
+        @Override
+        public void visit(HtmlBlock htmlBlock) {
+            sb.append(htmlBlock.getLiteral());
+            sb.append("\n");
         }
 
         public String getResult() {

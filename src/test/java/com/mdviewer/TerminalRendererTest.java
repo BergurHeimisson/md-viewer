@@ -83,6 +83,23 @@ class TerminalRendererTest {
     }
 
     @Test
+    void inlineHtmlLiteralIsPreserved() {
+        String output = renderer.render("### rand:<min>-<max>");
+        String plain = output.replaceAll("\033\\[[0-9;]*m", "");
+        assertTrue(plain.contains("<min>"), "angle-bracket text should not be dropped");
+        assertTrue(plain.contains("<max>"), "angle-bracket text should not be dropped");
+    }
+
+    @Test
+    void h3HeadingDoesNotShowRawHashes() {
+        String output = renderer.render("### Section");
+        String plain = output.replaceAll("\033\\[[0-9;]*m", "");
+        assertFalse(plain.contains("### "), "H3 should use a styled marker, not literal hashes");
+        assertTrue(plain.contains("Section"));
+        assertTrue(output.contains(AnsiColor.PURPLE_BOLD));
+    }
+
+    @Test
     void tableCellsAreNotConcatenated() {
         String md = """
                 | Generator | Syntax | Example |
