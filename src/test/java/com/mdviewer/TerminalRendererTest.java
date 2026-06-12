@@ -83,6 +83,47 @@ class TerminalRendererTest {
     }
 
     @Test
+    void tableCellsAreNotConcatenated() {
+        String md = """
+                | Generator | Syntax | Example |
+                |-----------|--------|---------|
+                | rand | rand:<min>-<max> | ${exp:rand:1-4} |
+                | weighted | weighted:<w>=<v> | ${exp:weighted:80=Y} |
+                """;
+        String output = renderer.render(md);
+        // Header cells must not run together into "GeneratorSyntaxExample"
+        assertFalse(stripAnsi(output).contains("GeneratorSyntax"),
+                "table cells should be separated, not concatenated");
+        // Each row should land on its own line
+        String plain = stripAnsi(output);
+        assertTrue(plain.contains("Generator"));
+        assertTrue(plain.contains("rand"));
+        assertTrue(plain.contains("weighted"));
+        // A separator between header and body should appear before the first body cell
+        int headerIdx = plain.indexOf("Generator");
+        int randIdx = plain.indexOf("rand");
+        assertTrue(headerIdx < randIdx, "header should render before body rows");
+        assertNotEquals(plain.indexOf("Generator", headerIdx),
+                plain.indexOf("Syntax"),
+                "header cells should occupy different positions");
+    }
+
+    @Test
+    void tableRendersColumnSeparators() {
+        String md = """
+                | A | B |
+                |---|---|
+                | 1 | 2 |
+                """;
+        String output = renderer.render(md);
+        assertTrue(output.contains("│"), "table should use vertical separators between columns");
+    }
+
+    private static String stripAnsi(String s) {
+        return s.replaceAll("\033\\[[0-9;]*m", "");
+    }
+
+    @Test
     void emptyInputProducesNoOutput() {
         String output = renderer.render("");
         assertTrue(output.isBlank());

@@ -3,12 +3,18 @@ package com.mdviewer;
 import org.commonmark.ext.autolink.AutolinkExtension;
 import org.commonmark.ext.gfm.strikethrough.Strikethrough;
 import org.commonmark.ext.gfm.strikethrough.StrikethroughExtension;
+import org.commonmark.ext.gfm.tables.TableBlock;
+import org.commonmark.ext.gfm.tables.TableBody;
+import org.commonmark.ext.gfm.tables.TableCell;
+import org.commonmark.ext.gfm.tables.TableHead;
+import org.commonmark.ext.gfm.tables.TableRow;
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.ext.heading.anchor.HeadingAnchorExtension;
 import org.commonmark.ext.task.list.items.TaskListItemsExtension;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -166,6 +172,100 @@ public class TerminalRenderer {
             } else {
                 visitChildren(customNode);
             }
+        }
+
+        @Override
+        public void visit(CustomBlock customBlock) {
+            if (customBlock instanceof TableBlock) {
+                renderTable((TableBlock) customBlock);
+            } else {
+                visitChildren(customBlock);
+            }
+        }
+
+        /** Renders a GFM table as a box-drawn grid with aligned columns. */
+        private void renderTable(TableBlock table) {
+            List<List<String>> rows = new ArrayList<>();
+            int headerRowCount = 0;
+
+            for (Node section = table.getFirstChild(); section != null; section = section.getNext()) {
+                boolean isHead = section instanceof TableHead;
+                for (Node rowNode = section.getFirstChild(); rowNode != null; rowNode = rowNode.getNext()) {
+                    if (!(rowNode instanceof TableRow)) {
+                        continue;
+                    }
+                    List<String> cells = new ArrayList<>();
+                    for (Node cellNode = rowNode.getFirstChild(); cellNode != null; cellNode = cellNode.getNext()) {
+                        if (cellNode instanceof TableCell) {
+                            cells.add(renderInline(cellNode));
+                        }
+                    }
+                    rows.add(cells);
+                    if (isHead) {
+                        headerRowCount++;
+                    }
+                }
+            }
+
+            if (rows.isEmpty()) {
+                return;
+            }
+
+            int columns = rows.stream().mapToInt(List::size).max().orElse(0);
+            int[] widths = new int[columns];
+            for (List<String> row : rows) {
+                for (int c = 0; c < row.size(); c++) {
+                    widths[c] = Math.max(widths[c], visibleLength(row.get(c)));
+                }
+            }
+
+            sb.append("\n");
+            appendBorder(widths, "┌", "┬", "┐");
+            for (int r = 0; r < rows.size(); r++) {
+                appendRow(rows.get(r), widths, r < headerRowCount);
+                if (r == headerRowCount - 1) {
+                    appendBorder(widths, "├", "┼", "┤");
+                }
+            }
+            appendBorder(widths, "└", "┴", "┘");
+            sb.append("\n");
+        }
+
+        private void appendBorder(int[] widths, String left, String mid, String right) {
+            sb.append(AnsiColor.BLACK_BRIGHT).append(left);
+            for (int c = 0; c < widths.length; c++) {
+                sb.append("─".repeat(widths[c] + 2));
+                sb.append(c == widths.length - 1 ? right : mid);
+            }
+            sb.append(AnsiColor.RESET).append("\n");
+        }
+
+        private void appendRow(List<String> cells, int[] widths, boolean header) {
+            for (int c = 0; c < widths.length; c++) {
+                sb.append(AnsiColor.BLACK_BRIGHT).append("│").append(AnsiColor.RESET).append(" ");
+                String content = c < cells.size() ? cells.get(c) : "";
+                if (header) {
+                    sb.append(AnsiColor.WHITE_BOLD).append(content).append(AnsiColor.RESET);
+                } else {
+                    sb.append(content);
+                }
+                sb.append(" ".repeat(widths[c] - visibleLength(content))).append(" ");
+            }
+            sb.append(AnsiColor.BLACK_BRIGHT).append("│").append(AnsiColor.RESET).append("\n");
+        }
+
+        /** Renders a node's inline children to ANSI, trimmed to a single line. */
+        private String renderInline(Node node) {
+            AnsiVisitor sub = new AnsiVisitor();
+            for (Node child = node.getFirstChild(); child != null; child = child.getNext()) {
+                child.accept(sub);
+            }
+            return sub.getResult().strip();
+        }
+
+        /** Visible character count, ignoring ANSI escape sequences. */
+        private static int visibleLength(String s) {
+            return s.replaceAll("\033\\[[0-9;]*m", "").length();
         }
 
         @Override
