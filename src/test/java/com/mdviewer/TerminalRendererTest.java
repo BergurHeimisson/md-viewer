@@ -100,6 +100,24 @@ class TerminalRendererTest {
     }
 
     @Test
+    void imageShowsAltTextAndUrl() {
+        String output = renderer.render("![A diagram](https://x.com/img.png)");
+        String plain = output.replaceAll("\033\\[[0-9;]*m", "");
+        assertTrue(plain.contains("A diagram"), "image alt text should render");
+        assertTrue(plain.contains("https://x.com/img.png"), "image URL should not be dropped");
+    }
+
+    @Test
+    void taskListShowsCheckboxState() {
+        String output = renderer.render("- [x] done\n- [ ] todo");
+        String plain = output.replaceAll("\033\\[[0-9;]*m", "");
+        assertTrue(plain.contains("☑"), "checked task should show a ticked box");
+        assertTrue(plain.contains("☐"), "unchecked task should show an empty box");
+        assertTrue(plain.contains("done"));
+        assertTrue(plain.contains("todo"));
+    }
+
+    @Test
     void tableCellsAreNotConcatenated() {
         String md = """
                 | Generator | Syntax | Example |

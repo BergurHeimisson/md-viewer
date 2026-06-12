@@ -10,6 +10,7 @@ import org.commonmark.ext.gfm.tables.TableHead;
 import org.commonmark.ext.gfm.tables.TableRow;
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.ext.heading.anchor.HeadingAnchorExtension;
+import org.commonmark.ext.task.list.items.TaskListItemMarker;
 import org.commonmark.ext.task.list.items.TaskListItemsExtension;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
@@ -109,6 +110,13 @@ public class TerminalRenderer {
         }
 
         @Override
+        public void visit(Image image) {
+            sb.append(AnsiColor.PURPLE).append("🖼 ").append(AnsiColor.RESET);
+            visitChildren(image);
+            sb.append(AnsiColor.BLUE).append(" [").append(image.getDestination()).append("]").append(AnsiColor.RESET);
+        }
+
+        @Override
         public void visit(BulletList bulletList) {
             visitChildren(bulletList);
             sb.append("\n");
@@ -128,10 +136,17 @@ public class TerminalRenderer {
             Node parent = listItem.getParent();
             if (parent instanceof OrderedList) {
                 sb.append("  ").append(orderedListCounter++).append(". ");
-            } else {
+            } else if (!isTaskItem(listItem)) {
+                // Task items render their own checkbox marker in place of the bullet.
                 sb.append("  ").append(AnsiColor.CYAN).append("•").append(AnsiColor.RESET).append(" ");
+            } else {
+                sb.append("  ");
             }
             visitChildren(listItem);
+        }
+
+        private static boolean isTaskItem(ListItem listItem) {
+            return listItem.getFirstChild() instanceof TaskListItemMarker;
         }
 
         @Override
@@ -168,6 +183,12 @@ public class TerminalRenderer {
                 sb.append(AnsiColor.BLACK_BRIGHT);
                 visitChildren(customNode);
                 sb.append(AnsiColor.RESET);
+            } else if (customNode instanceof TaskListItemMarker marker) {
+                if (marker.isChecked()) {
+                    sb.append(AnsiColor.GREEN_BOLD).append("☑").append(AnsiColor.RESET).append(" ");
+                } else {
+                    sb.append(AnsiColor.BLACK_BRIGHT).append("☐").append(AnsiColor.RESET).append(" ");
+                }
             } else {
                 visitChildren(customNode);
             }
