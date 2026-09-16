@@ -11,13 +11,25 @@ cd md-viewer
 ./install.sh
 ```
 
-Builds with Go and installs the binary to `/usr/local/bin/md-viewer`. If a
-previous Java install is present, `install.sh` removes it.
+Builds with Go and installs the binary to `/usr/local/bin/md-viewer`, which
+needs your root password. If a previous Java install is present, `install.sh`
+removes it.
+
+**Without sudo:**
+
+```sh
+./install.sh --user
+```
+
+Installs to `go env GOBIN`, or `go env GOPATH`/bin if that is unset — typically
+`~/go/bin`. Reach for this when sudo has no terminal to prompt on. The script
+tells you if the directory is not on your `PATH`.
 
 **Uninstall:**
 
 ```sh
-sudo rm -f /usr/local/bin/md-viewer
+sudo rm -f /usr/local/bin/md-viewer   # system install
+rm -f "$(go env GOPATH)/bin/md-viewer"  # --user install
 ```
 
 ## Usage
