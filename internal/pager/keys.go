@@ -62,14 +62,19 @@ func decode(c byte) key {
 }
 
 // readEscape decodes a CSI sequence after the leading Esc has been consumed.
-// A bare Esc — nothing buffered behind it — quits, matching less.
+//
+// A lone Esc is ignored rather than treated as quit. Arrow and page keys send
+// Esc as the first byte of a multi-byte sequence, and nothing guarantees the
+// terminal delivers the whole sequence in one read — over ssh or a slow tty
+// the Esc can arrive alone, and quitting there would lose the reader's place.
+// Quit is bound to q and Ctrl-C, which cannot be split.
 func (s *session) readEscape() key {
 	if s.reader.Buffered() == 0 {
-		return keyQuit
+		return keyNone
 	}
 	c, err := s.reader.ReadByte()
 	if err != nil {
-		return keyQuit
+		return keyNone
 	}
 	if c != '[' && c != 'O' {
 		return keyNone

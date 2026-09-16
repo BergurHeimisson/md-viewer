@@ -149,6 +149,9 @@ func wrapLine(line string, width int) string {
 		// before the word, so this — not active, which the word's own escapes
 		// may already have changed — is what must be closed and reopened.
 		wordStart string
+		// Spaces seen since the last word, carried so that runs of whitespace
+		// and leading indentation survive a wrap instead of collapsing to one.
+		gap int
 	)
 
 	// appendToWord records the colour state at the start of each new word.
@@ -165,17 +168,18 @@ func wrapLine(line string, width int) string {
 		}
 		// A word that cannot fit on any line is placed as-is and allowed to
 		// overflow; breaking inside it would be worse than a ragged edge.
-		if cur > 0 && cur+1+wordLen > width {
+		if cur > 0 && cur+gap+wordLen > width {
 			if wordStart != "" {
 				b.WriteString(Reset)
 			}
 			b.WriteByte('\n')
 			b.WriteString(wordStart)
 			cur = 0
-		} else if cur > 0 && wordLen > 0 {
-			b.WriteByte(' ')
-			cur++
+		} else if gap > 0 {
+			b.WriteString(strings.Repeat(" ", gap))
+			cur += gap
 		}
+		gap = 0
 		b.WriteString(word.String())
 		cur += wordLen
 		word.Reset()
@@ -201,6 +205,7 @@ func wrapLine(line string, width int) string {
 		}
 		if line[i] == ' ' {
 			flushWord()
+			gap++
 			i++
 			continue
 		}

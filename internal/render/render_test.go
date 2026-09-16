@@ -219,3 +219,45 @@ func TestWrappingLeavesCodeBlocksAlone(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+// The heading markers are multi-byte ("═══ " is 10 bytes, 4 cells). Measuring
+// them with len() wrapped headings too narrow and over-indented their
+// continuation lines.
+func TestWrappedHeadingLinesUpUnderItsText(t *testing.T) {
+	const width = 30
+	r := &Renderer{Width: width}
+	got := ansi.Strip(r.Render([]byte("# alpha beta gamma delta epsilon zeta eta")))
+
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected the heading to wrap, got %q", got)
+	}
+	for _, line := range lines {
+		if n := len([]rune(line)); n > width {
+			t.Errorf("line %q is %d cells, want <= %d", line, n, width)
+		}
+	}
+	for _, line := range lines[1:] {
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		if indent != 4 { // len("═══ ") in cells
+			t.Errorf("continuation %q indented %d, want 4", line, indent)
+		}
+	}
+}
+
+func TestHeadingWrapsAtNarrowWidths(t *testing.T) {
+	// width-len(marker) used to go negative here, silently disabling wrapping.
+	r := &Renderer{Width: 8}
+	got := ansi.Strip(r.Render([]byte("# alpha bravo charlie")))
+	if !strings.Contains(got, "\n") {
+		t.Errorf("heading should still wrap at width 8, got %q", got)
+	}
+}
+
+// CommonMark allows an ordered list to start at 0.
+func TestOrderedListCanStartAtZero(t *testing.T) {
+	got := renderPlain(t, "0. zero\n1. one\n")
+	if want := "  0. zero\n  1. one\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

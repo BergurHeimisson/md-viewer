@@ -57,8 +57,9 @@ func TestKeyDecoding(t *testing.T) {
 		{"application-mode arrow up", "\x1bOA", keyUp},
 		{"modified arrow up", "\x1b[1;5A", keyUp},
 
-		// A lone Esc with nothing behind it is a quit, as in less.
-		{"bare escape quits", "\x1b", keyQuit},
+		// A lone Esc must not quit: it may be the first byte of an arrow
+		// sequence that arrived split across two reads.
+		{"bare escape is ignored", "\x1b", keyNone},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

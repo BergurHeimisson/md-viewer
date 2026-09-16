@@ -27,7 +27,7 @@ md-viewer path/to/file.md
 ```
 
 The pager opens only when it is needed. A file that fits on one screen is
-printed and left in your scrollback, and piping the output turns colour
+printed and left in your scrollback, and piping the output turns colour,
 wrapping and paging off entirely, so this works as expected:
 
 ```sh
@@ -53,7 +53,7 @@ md-viewer ARCHITECTURE.md | grep -i pager
 | `g` / `G`, `Home` / `End` | Top / bottom |
 | `/` | Search |
 | `n` / `N` | Next / previous match |
-| `q`, `Esc`, `Ctrl-C` | Quit |
+| `q`, `Ctrl-C` | Quit |
 
 ## Rendering
 
@@ -65,6 +65,9 @@ tables drawn as aligned box grids.
 Prose wraps to your terminal width, capped at 100 columns. Code blocks and
 tables are never re-flowed — they are pre-formatted, so the terminal clips them
 horizontally instead.
+
+Colour is emitted only when stdout is a terminal, and `NO_COLOR=1` turns it off
+there too.
 
 ## Development
 

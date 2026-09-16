@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/BergurHeimisson/md-viewer/internal/ansi"
 	"github.com/BergurHeimisson/md-viewer/internal/pager"
 	"github.com/BergurHeimisson/md-viewer/internal/render"
 	"golang.org/x/term"
@@ -48,6 +49,9 @@ func main() {
 
 	r := &render.Renderer{Width: wrapWidth()}
 	content := r.Render(src)
+	if !colourEnabled() {
+		content = ansi.Strip(content)
+	}
 
 	if *noPager {
 		fmt.Print(content)
@@ -58,6 +62,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "md-viewer: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// colourEnabled reports whether to emit ANSI escapes. Piped output must stay
+// greppable, and NO_COLOR is honoured for terminals that want plain text.
+// See https://no-color.org.
+func colourEnabled() bool {
+	if _, set := os.LookupEnv("NO_COLOR"); set {
+		return false
+	}
+	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 // wrapWidth is the terminal width, capped, or zero when stdout is not a
@@ -86,5 +100,5 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  j / k, arrow down / up   one line")
 	fmt.Fprintln(os.Stderr, "  g / G, Home / End        top / bottom")
 	fmt.Fprintln(os.Stderr, "  / then n / N             search, next / previous match")
-	fmt.Fprintln(os.Stderr, "  q, Esc, Ctrl-C           quit")
+	fmt.Fprintln(os.Stderr, "  q, Ctrl-C                quit")
 }

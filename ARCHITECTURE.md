@@ -42,9 +42,15 @@ stray padded blank line above it.
 
 **Escape-aware width measurement**
 `ansi.VisibleLen` strips SGR sequences before counting, and counts CJK and
-emoji ranges as two cells. Table columns and the pager status line are both
-padded from this, so a bold cell or a `🖼` in a heading does not skew the
-layout.
+emoji ranges as two cells. Table columns, heading hanging indents and the pager
+status line are all padded from this, so a bold cell or a `🖼` in a heading does
+not skew the layout. Heading markers make this easy to get wrong: `"═══ "` is
+10 bytes but 4 cells.
+
+**Wrapping preserves runs of whitespace**
+`ansi.Wrap` carries the gap before each word rather than rejoining with a
+single space, so indentation and double spaces survive. Collapsing them would
+make the same paragraph render differently at two terminal widths.
 
 **Wrapping reopens the active colour after a break**
 `ansi.Wrap` tracks the SGR code in effect where each word begins — not at the
@@ -73,9 +79,35 @@ survives, and restores raw mode, cursor, auto-wrap and the main screen from a
 single `defer` covering every exit path including a panic. Leaving a terminal
 in raw mode on the alternate screen makes the user's shell unusable.
 
-**Width is zero when stdout is not a TTY**
-`Renderer.Width == 0` disables wrapping entirely, so piped output keeps the
-document's own line structure and stays greppable.
+**Piped output is plain, unwrapped text**
+`Renderer.Width == 0` disables wrapping when stdout is not a TTY, and the
+rendered text is run through `ansi.Strip` in the same case (and when `NO_COLOR`
+is set). Both are needed for `md-viewer x.md | grep foo` to behave: wrapping
+would break the document's own line structure, and escapes would make any
+phrase straddling an emphasis boundary silently fail to match.
+
+**A lone Esc does not quit**
+Arrow and page keys send Esc as the first byte of a multi-byte sequence, and
+nothing guarantees the terminal delivers the whole sequence in one `read(2)` —
+over ssh or a slow tty the Esc can arrive alone. Treating it as quit would drop
+the reader out of the document at random. Quit is `q` and `Ctrl-C`, which
+cannot be split.
+
+**The search cursor is tracked separately from the scroll position**
+`top` is clamped to `maxTop`, so a match inside the last screenful does not
+scroll to its own line. Resuming the next search from `top` would therefore
+re-find that same match forever, making every later one unreachable. `match`
+holds the real hit index and `n`/`N` advance from it.
+
+**Each pager row is cleared before it is written, not after**
+Auto-wrap is off, so writing a line at least as wide as the terminal parks the
+cursor *in* the last column. A trailing `\e[K` there erases that cell — the
+rightmost visible character of every over-wide row.
+
+**Terminal size is re-read on each repaint**
+A blocked `read` does not wake on `SIGWINCH`, so there is no signal handler; the
+size is sampled in `draw` instead and a resize takes effect on the next
+keypress. Already-rendered text keeps its original wrap width.
 
 **`-headless` is a deliberate no-op**
 The tool is always headless now, but the flag is in existing muscle memory and

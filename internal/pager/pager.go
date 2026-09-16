@@ -71,6 +71,9 @@ type session struct {
 
 	top    int // index of the first visible line
 	search string
+	// Index of the current search hit. Clamping top to maxTop would otherwise
+	// make every match inside the last screenful re-find itself forever.
+	match int
 }
 
 // view is the number of content lines visible, leaving one row for the status.
@@ -122,12 +125,13 @@ func (s *session) handle(k key) bool {
 	case keySearch:
 		if q := s.prompt("/"); q != "" {
 			s.search = q
+			s.match = s.top
 			s.findNext(s.top + 1)
 		}
 	case keyNextMatch:
-		s.findNext(s.top + 1)
+		s.findNext(s.match + 1)
 	case keyPrevMatch:
-		s.findPrev(s.top - 1)
+		s.findPrev(s.match - 1)
 	}
 	return false
 }
@@ -146,8 +150,9 @@ func (s *session) findNext(from int) {
 	if s.search == "" {
 		return
 	}
-	for i := from; i < len(s.lines); i++ {
+	for i := max(from, 0); i < len(s.lines); i++ {
 		if matches(s.lines[i], s.search) {
+			s.match = i
 			s.top = min(i, s.maxTop())
 			return
 		}
@@ -160,7 +165,8 @@ func (s *session) findPrev(from int) {
 	}
 	for i := min(from, len(s.lines)-1); i >= 0; i-- {
 		if matches(s.lines[i], s.search) {
-			s.top = i
+			s.match = i
+			s.top = min(i, s.maxTop())
 			return
 		}
 	}
@@ -173,16 +179,31 @@ func matches(line, needle string) bool {
 }
 
 func (s *session) draw() {
+	s.resync()
 	var b strings.Builder
 	b.WriteString(ansi.CursorHome + ansi.ClearScreen + ansi.CursorHome)
 	for i := 0; i < s.view(); i++ {
+		b.WriteString(ansi.ClearToEndOfL)
 		if idx := s.top + i; idx < len(s.lines) {
 			b.WriteString(s.lines[idx])
 		}
-		b.WriteString(ansi.ClearToEndOfL + "\r\n")
+		b.WriteString("\r\n")
 	}
 	b.WriteString(s.status())
 	fmt.Fprint(s.out, b.String())
+}
+
+// resync picks up a terminal resize. A blocked read does not wake on SIGWINCH,
+// so sampling here applies the new size at the next repaint.
+func (s *session) resync() {
+	f, ok := s.out.(*os.File)
+	if !ok {
+		return
+	}
+	if cols, rows, err := term.GetSize(int(f.Fd())); err == nil && cols > 0 && rows >= 3 {
+		s.cols, s.rows = cols, rows
+		s.scroll(0) // re-clamp: a taller terminal can shrink maxTop
+	}
 }
 
 func (s *session) status() string {

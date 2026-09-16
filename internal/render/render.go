@@ -101,8 +101,11 @@ func (w *walker) heading(n *ast.Heading, width int) string {
 	default:
 		colour, marker = ansi.PurpleBold, "▸ "
 	}
-	body := ansi.Wrap(w.inline(n), width-len(marker))
-	return colour + marker + indentContinuation(body, len(marker)) + ansi.Reset + "\n"
+	// The markers are multi-byte ("═══ " is 10 bytes, 4 cells), so width and
+	// the hanging indent must both be measured in cells.
+	pad := ansi.VisibleLen(marker)
+	body := ansi.Wrap(w.inline(n), width-pad)
+	return colour + marker + indentContinuation(body, pad) + ansi.Reset + "\n"
 }
 
 func (w *walker) codeBlock(n ast.Node) string {
@@ -148,8 +151,10 @@ func (w *walker) blockquote(n *ast.Blockquote, width int) string {
 
 func (w *walker) list(n *ast.List, width int) string {
 	var parts []string
+	// Start is the parsed marker number for an ordered list, and CommonMark
+	// allows it to be 0 — only a bullet list needs a default.
 	number := n.Start
-	if number == 0 {
+	if !n.IsOrdered() {
 		number = 1
 	}
 	for item := n.FirstChild(); item != nil; item = item.NextSibling() {

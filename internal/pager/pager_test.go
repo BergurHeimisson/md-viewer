@@ -154,3 +154,46 @@ func TestStatusLineShowsTitleAndPercent(t *testing.T) {
 		t.Errorf("status %q should read 100%% at the bottom", got)
 	}
 }
+
+// A match inside the last screenful clamps top to maxTop. If the next search
+// resumed from top rather than the match index it would re-find the same line
+// forever, making later matches unreachable.
+func TestNextMatchAdvancesPastAClampedHit(t *testing.T) {
+	s := newSession(50)
+	s.lines[45] = "needle first"
+	s.lines[47] = "needle second"
+
+	s.search = "needle"
+	s.findNext(0)
+	if s.match != 45 {
+		t.Fatalf("first match = %d, want 45", s.match)
+	}
+	if s.top != s.maxTop() {
+		t.Fatalf("top = %d, want it clamped to %d", s.top, s.maxTop())
+	}
+
+	s.handle(keyNextMatch)
+	if s.match != 47 {
+		t.Errorf("second match = %d, want 47", s.match)
+	}
+}
+
+func TestPrevMatchWalksBackwardsThroughHits(t *testing.T) {
+	s := newSession(50)
+	s.lines[10] = "needle one"
+	s.lines[20] = "needle two"
+
+	s.search = "needle"
+	s.findNext(0)
+	if s.match != 10 {
+		t.Fatalf("match = %d, want 10", s.match)
+	}
+	s.handle(keyNextMatch)
+	if s.match != 20 {
+		t.Fatalf("match = %d, want 20", s.match)
+	}
+	s.handle(keyPrevMatch)
+	if s.match != 10 {
+		t.Errorf("match = %d, want 10", s.match)
+	}
+}

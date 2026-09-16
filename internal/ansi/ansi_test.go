@@ -96,3 +96,25 @@ func splitLines(s string) []string {
 	}
 	return append(out, s[start:])
 }
+
+// Whitespace runs must survive a wrap, so the same paragraph does not render
+// differently at two terminal widths.
+func TestWrapPreservesSpaceRuns(t *testing.T) {
+	in := "alpha  beta   gamma delta epsilon"
+	if got := Wrap(in, 100); got != in {
+		t.Errorf("unwrapped: got %q, want %q", got, in)
+	}
+	got := Wrap(in, 20)
+	want := "alpha  beta   gamma\ndelta epsilon"
+	if got != want {
+		t.Errorf("wrapped: got %q, want %q", got, want)
+	}
+}
+
+func TestWrapKeepsLeadingIndent(t *testing.T) {
+	got := Wrap("    indented text that will need breaking", 20)
+	want := "    indented text\nthat will need\nbreaking"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

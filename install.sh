@@ -37,9 +37,13 @@ sudo mkdir -p "$BIN_DIR"
 sudo install -m 755 "$SCRIPT_DIR/$BIN_NAME" "$BIN_DIR/$BIN_NAME"
 
 # Clean up the Java install if it is still around from a previous version.
-if [ -e "/usr/local/bin/mdviewer" ] || [ -d "/usr/local/lib/mdviewer" ]; then
+# Gated on the JAR so an unrelated mdviewer on PATH is never deleted.
+if [ -f "/usr/local/lib/mdviewer/mdviewer.jar" ]; then
     echo "==> Removing the old Java mdviewer install..."
-    sudo rm -rf /usr/local/lib/mdviewer /usr/local/bin/mdviewer
+    sudo rm -rf /usr/local/lib/mdviewer
+    if [ -L "/usr/local/bin/mdviewer" ]; then
+        sudo rm -f /usr/local/bin/mdviewer
+    fi
 fi
 
 echo ""
