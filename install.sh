@@ -89,6 +89,21 @@ else
     fi
 fi
 
+# An install that loses to an older copy earlier in PATH looks like it did
+# nothing, so check what the name actually resolves to rather than assuming
+# it is what we just wrote.
+winner="$(command -v "$BIN_NAME" 2>/dev/null || true)"
+if [ -n "$winner" ] && [ "$winner" != "$BIN_DIR/$BIN_NAME" ]; then
+    echo ""
+    echo "Warning: '$BIN_NAME' still resolves to $winner"
+    echo "  That directory comes earlier in PATH, so it runs instead of the"
+    echo "  copy just installed. Remove the stale one:"
+    case "$winner" in
+        "$HOME"/*) echo "    rm -f $winner" ;;
+        *)         echo "    sudo rm -f $winner" ;;
+    esac
+fi
+
 # An install nobody can run is not an install.
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
