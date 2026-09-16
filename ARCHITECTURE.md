@@ -2,73 +2,141 @@
 
 ## Overview
 
-Single-window Swing application. No database, no network I/O. The rendering pipeline is: raw Markdown text → CommonMark AST → HTML fragment → `<br>` injection before headings → Dracula-themed HTML document → `JEditorPane`.
-
-## Package layout
+A single Go binary. No database, no network I/O, no config file. The pipeline
+is: file bytes → goldmark AST → ANSI text → pager.
 
 ```
-com.mdviewer
-├── App.java               Entry point. Sets up L&F, reads CLI arg, creates MainWindow.
-├── FlatDraculaTheme.java  Extends FlatDarkLaf; loads colour overrides from .properties.
-├── MainWindow.java        The single JFrame. Owns the scroll pane, drop target, key bindings,
-│                          sibling navigation, and window preference save/restore.
-└── MarkdownRenderer.java  Stateless. Parses Markdown via CommonMark and wraps the output
-                           in a self-contained HTML document with inline Dracula CSS.
+cmd/md-viewer/main.go        flags, file read, wire renderer → pager
+internal/ansi/ansi.go        SGR constants, escape-aware VisibleLen and Wrap
+internal/render/render.go    AST → ANSI (block and inline walkers)
+internal/render/table.go     GFM table → box-drawn aligned grid
+internal/pager/pager.go      raw-mode TTY pager, scrolling, search
+internal/pager/keys.go       key and CSI escape decoding
 ```
 
 ## Key decisions
 
-**`JEditorPane` over JavaFX WebView**
-Keeps the runtime dependency footprint minimal — no JavaFX required. The tradeoff is a limited HTML/CSS engine: `em`/`rem` units are ignored, so font sizes use `px`; many modern CSS properties are unsupported. The inline stylesheet is built manually in `MarkdownRenderer.buildCss()` to work within these constraints.
+**Go instead of Java/Swing**
+The Swing window was never used; the `-headless` path was. Delivering a
+terminal pager through a Maven build, FlatLaf, an HTML renderer and a JVM
+launcher cost startup latency and a Java 25 runtime dependency for no benefit.
+A Go binary starts instantly and installs as one file.
 
-**`<br>` injection before headings**
-`JEditorPane`'s HTML engine ignores large `margin-top` values, so a blank line above each heading cannot be achieved via CSS alone. `MarkdownRenderer.render()` does a regex replace on the rendered HTML body to prepend `<br>` before every `<h1>`–`<h6>` tag.
+**A hand-written AST walker, not goldmark's Renderer interface**
+goldmark's renderer API is built around HTML-shaped streaming output. A
+recursive walker maps far more directly onto the block concerns this tool has —
+width, prefixes, indentation — and mirrors the Java visitor it replaced.
 
-**Custom `StyleSheet` on `HTMLEditorKit`**
-`JEditorPane` injects its own default stylesheet (serif fonts, blue links) before rendering. This is replaced with a blank `StyleSheet` so the Dracula CSS from the HTML document takes full effect without interference.
+**Every block returns text ending in exactly one newline**
+Containers join their children with one extra `\n`, which is what produces the
+blank line between blocks. A container that adds a prefix (blockquote, list
+item) renders its children against a reduced width and then prefixes each
+resulting line. This single convention is what makes wrapping compose
+correctly through arbitrary nesting; the Java renderer had no width concept and
+could not nest at all.
 
-**`FlatDraculaTheme` extending `FlatDarkLaf`**
-Only the Dracula-specific colour overrides live in `FlatDraculaTheme.properties`; all other dark defaults are inherited from `FlatDarkLaf`. This avoids duplicating the full FlatLaf default palette.
+**Tight lists join their item blocks with no separator**
+`ast.List.IsTight` decides whether an item's paragraph and its nested sublist
+are separated by a blank line. Without this, every nested bullet gained a
+stray padded blank line above it.
 
-**Drag-and-drop on the editor pane surface**
-`DropTarget` is registered directly on the `JEditorPane`, which covers the entire visible window area. A purple border highlight on `dragEnter` provides visual feedback without any additional overlay component.
+**Escape-aware width measurement**
+`ansi.VisibleLen` strips SGR sequences before counting, and counts CJK and
+emoji ranges as two cells. Table columns, heading hanging indents and the pager
+status line are all padded from this, so a bold cell or a `🖼` in a heading does
+not skew the layout. Heading markers make this easy to get wrong: `"═══ "` is
+10 bytes but 4 cells.
 
-**Arrow key navigation bound on `JEditorPane` directly**
-All four arrow keys are bound on the `JEditorPane`'s own `WHEN_FOCUSED` input map, overriding its built-in cursor-movement bindings. Binding them on the root pane (`WHEN_IN_FOCUSED_WINDOW`) does not work because the editor pane consumes arrow events first.
-- Left/right: call `navigateSibling(±1)`, which cycles through `.md` files in the same directory sorted alphabetically.
-- Up/down: adjust `scrollPane.getVerticalScrollBar()` by one unit increment.
+**Wrapping preserves runs of whitespace**
+`ansi.Wrap` carries the gap before each word rather than rejoining with a
+single space, so indentation and double spaces survive. Collapsing them would
+make the same paragraph render differently at two terminal widths.
 
-**Absolute path normalisation on open**
-All `File` arguments are resolved to absolute paths via `getAbsoluteFile()` before use. `getParentFile()` returns `null` for bare filenames (e.g. `ARCHITECTURE.md` with no directory component), which would cause a `NullPointerException` in `rebuildSiblings`.
+**Wrapping reopens the active colour after a break**
+`ansi.Wrap` tracks the SGR code in effect where each word begins — not at the
+read position, since the word's own escapes may already have changed it — and
+on a break emits a reset before the newline and that code after it. Without
+this, a wrapped emphasis bleeds into the pager's status line.
 
-**`java.util.prefs.Preferences`**
-Cross-platform persistent storage for window bounds. No config file to manage or clean up.
+**Code blocks and tables are never wrapped**
+They are pre-formatted; re-flowing destroys their meaning. The pager disables
+terminal auto-wrap instead, so an over-wide table is clipped and stays aligned.
+
+**A built-in pager rather than `less -R`**
+`less` is absent on minimal Linux images, and its behaviour is shaped by the
+user's `LESS` variable — if `-R` is missing, the escapes print literally. The
+built-in pager also lets the bypass rules below be exact.
+
+**The pager bypasses itself in three cases**
+Output is printed straight to stdout when stdout or stdin is not a TTY, when
+`--no-pager` is given, or when the content fits on one screen. The last case
+mirrors `less -F`: a short file stays in the shell's scrollback after the
+command returns. The first is what keeps `md-viewer x.md | grep foo` working.
+
+**Alternate screen, auto-wrap off, and a deferred restore**
+The pager switches to the alternate screen (`\e[?1049h`) so scrollback
+survives, and restores raw mode, cursor, auto-wrap and the main screen from a
+single `defer` covering every exit path including a panic. Leaving a terminal
+in raw mode on the alternate screen makes the user's shell unusable.
+
+**Piped output is plain, unwrapped text**
+`Renderer.Width == 0` disables wrapping when stdout is not a TTY, and the
+rendered text is run through `ansi.Strip` in the same case (and when `NO_COLOR`
+is set). Both are needed for `md-viewer x.md | grep foo` to behave: wrapping
+would break the document's own line structure, and escapes would make any
+phrase straddling an emphasis boundary silently fail to match.
+
+**A lone Esc does not quit**
+Arrow and page keys send Esc as the first byte of a multi-byte sequence, and
+nothing guarantees the terminal delivers the whole sequence in one `read(2)` —
+over ssh or a slow tty the Esc can arrive alone. Treating it as quit would drop
+the reader out of the document at random. Quit is `q` and `Ctrl-C`, which
+cannot be split.
+
+**The search cursor is tracked separately from the scroll position**
+`top` is clamped to `maxTop`, so a match inside the last screenful does not
+scroll to its own line. Resuming the next search from `top` would therefore
+re-find that same match forever, making every later one unreachable. `match`
+holds the real hit index and `n`/`N` advance from it.
+
+**Each pager row is cleared before it is written, not after**
+Auto-wrap is off, so writing a line at least as wide as the terminal parks the
+cursor *in* the last column. A trailing `\e[K` there erases that cell — the
+rightmost visible character of every over-wide row.
+
+**Terminal size is re-read on each repaint**
+A blocked `read` does not wake on `SIGWINCH`, so there is no signal handler; the
+size is sampled in `draw` instead and a resize takes effect on the next
+keypress. Already-rendered text keeps its original wrap width.
+
+**`-headless` is a deliberate no-op**
+The tool is always headless now, but the flag is in existing muscle memory and
+scripts. Accepting and ignoring it is cheaper than breaking them.
 
 ## Dependencies
 
-| Library | Purpose |
+| Module | Purpose |
 |---|---|
-| `flatlaf` | Dark look-and-feel (Dracula theme base) |
-| `flatlaf-extras` | `FlatAnimatedLafChange` for smooth theme transitions |
-| `commonmark` | Markdown parser and HTML renderer |
-| `commonmark-ext-gfm-tables` | GitHub-Flavored Markdown tables |
-| `commonmark-ext-gfm-strikethrough` | `~~strikethrough~~` syntax |
-| `commonmark-ext-task-list-items` | `- [x]` task lists |
-| `commonmark-ext-autolink` | Auto-linkify bare URLs |
-| `commonmark-ext-heading-anchor` | Anchor IDs on headings |
+| `github.com/yuin/goldmark` | CommonMark parser; `extension.GFM` adds tables, strikethrough, task lists, autolinks |
+| `golang.org/x/term` | Terminal size, TTY detection, raw mode |
 
-## Launcher script (`mdviewer`)
+## Testing
 
-The shell script works both in development (run from the project root, finds `target/mdviewer.jar`) and when installed (symlinked from `/usr/local/bin/`, finds `mdviewer.jar` next to the resolved script path).
+`go test ./...` covers three packages with table-driven tests:
 
-**Symlink resolution:** `$0` inside a symlink points to the symlink, not the real file. The script walks `readlink` in a loop until it reaches the real path, so `DIR` always resolves to the actual script directory regardless of how it was invoked.
+- `internal/ansi` — `VisibleLen` over escapes and wide runes, `Wrap` at a fixed
+  width, colour carried across a break, width 0 as a no-op.
+- `internal/render` — one case per Markdown construct, table alignment and
+  padding, nested list indentation, wrapping bounds.
+- `internal/pager` — scroll arithmetic and clamping, search selection, status
+  line width. Key handling is tested by feeding literal byte sequences
+  (`"\x1b[6~"`) to the decoder, so no PTY is needed.
 
-**Java discovery order:** `$JAVA_HOME` → Homebrew on Apple Silicon (`/opt/homebrew/opt/openjdk`) → Homebrew on Intel (`/usr/local/opt/openjdk`) → macOS `java_home` utility → `java` in `PATH`.
+`gofmt` and `go vet` run in CI alongside the tests.
 
-**Platform flag:** `-Xdock:name=mdViewer` is macOS-only. The script checks `uname` and omits it on Linux.
+## Removed in the Go rewrite
 
-**`--enable-native-access=ALL-UNNAMED`:** Suppresses the FlatLaf restricted-method warning introduced in Java 17.
-
-## Installation (`install.sh`)
-
-Builds the JAR with Maven, prompts once for the root password (`sudo -v -p "Root Password: "`), copies the JAR and launcher to `/usr/local/lib/mdviewer/`, and symlinks the launcher into `/usr/local/bin/`. Works on macOS and Linux. Windows is not supported.
+The Swing window, FlatLaf theming, the `colors.properties` colour scheme (the
+terminal path never read it — it used hardcoded ANSI constants), drag-and-drop,
+arrow-key navigation between sibling `.md` files, window position persistence,
+and the JVM launcher script.

@@ -1,5 +1,5 @@
-target/
-*.class
-*.iml
-.idea/
+/md-viewer
+/dist/
+*.test
 .DS_Store
+.idea/
