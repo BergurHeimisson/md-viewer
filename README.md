@@ -1,28 +1,9 @@
-# mdViewer
+# md-viewer
 
-A minimalistic Java Swing application for viewing Markdown files with a Dracula-themed dark UI.
+A terminal Markdown viewer. Renders a `.md` file with ANSI colour and pages it
+one screen at a time. Single Go binary, no runtime dependencies.
 
-## Features
-
-- Drag-and-drop a `.md` or `.markdown` file onto the window to open it
-- Pass a file path as a command-line argument
-- Cycle through all `.md` files in the same folder with the arrow keys
-- Scroll content with up/down arrow keys
-- Open files via `Cmd+O`
-- Rendered Markdown with support for tables, task lists, strikethrough, autolinks, and heading anchors
-- Dracula colour theme throughout — FlatLaf for the chrome, inline CSS for the content
-- Fully configurable colour scheme via a plain-text properties file
-- Window position and size remembered across restarts
-
-## Requirements
-
-- Java 17+
-- Maven 3.6+ (to build)
-- macOS or Linux (Windows is not supported)
-
-## Installation
-
-Clone the repo and run the install script:
+## Install
 
 ```sh
 git clone https://github.com/BergurHeimisson/md-viewer.git
@@ -30,63 +11,75 @@ cd md-viewer
 ./install.sh
 ```
 
-Installs to `/usr/local/lib/mdviewer/` and symlinks the launcher into `/usr/local/bin/` — no PATH or shell configuration needed after that.
+Builds with Go and installs the binary to `/usr/local/bin/md-viewer`. If a
+previous Java install is present, `install.sh` removes it.
 
 **Uninstall:**
 
 ```sh
-sudo rm -rf /usr/local/lib/mdviewer /usr/local/bin/mdviewer
+sudo rm -f /usr/local/bin/md-viewer
 ```
 
 ## Usage
 
 ```sh
-mdviewer path/to/file.md
+md-viewer path/to/file.md
 ```
 
-Or launch with no argument and drop a file onto the window.
+The pager opens only when it is needed. A file that fits on one screen is
+printed and left in your scrollback, and piping the output turns colour
+wrapping and paging off entirely, so this works as expected:
 
-## Colour scheme
-
-All colours can be overridden via a properties file. Create it at:
-
-- **macOS:** `~/Library/Application Support/mdviewer/colors.properties`
-- **Linux:** `~/.config/mdviewer/colors.properties`
-
-Any omitted keys fall back to the Dracula defaults. Available keys:
-
-```properties
-color.bg=#282a36       # page/editor background
-color.fg=#f8f8f2       # body text
-color.surface=#44475a  # code block background, table row hover, borders
-color.muted=#6272a4    # blockquotes, subdued text
-color.heading=#bd93f9  # h2–h6 headings
-color.link=#8be9fd     # hyperlinks
-color.code=#50fa7b     # code / pre text
-color.bold=#ffb86c     # **bold** text
-color.italic=#f1fa8c   # *italic* text
-color.accent=#ff79c6   # table header text
-color.del=#ff5555      # ~~strikethrough~~ text
+```sh
+md-viewer ARCHITECTURE.md | grep -i pager
 ```
 
-Restart the app after editing to apply changes.
+### Flags
+
+| Flag | Effect |
+|---|---|
+| `-headless` | Accepted and ignored — md-viewer is always headless |
+| `-no-pager` | Print everything to stdout without paging |
+| `-version` | Print the version and exit |
+
+### Pager keys
+
+| Key | Action |
+|---|---|
+| `SPACE`, `f`, `PgDn`, `Ctrl-F` | Next screen |
+| `b`, `PgUp`, `Ctrl-B` | Previous screen |
+| `d` / `u` | Half a screen down / up |
+| `j` / `k`, `↓` / `↑` | One line |
+| `g` / `G`, `Home` / `End` | Top / bottom |
+| `/` | Search |
+| `n` / `N` | Next / previous match |
+| `q`, `Esc`, `Ctrl-C` | Quit |
+
+## Rendering
+
+GitHub-Flavored Markdown, via [goldmark](https://github.com/yuin/goldmark):
+headings, emphasis, code spans and blocks, blockquotes, nested and ordered
+lists, task lists, links, images, strikethrough, autolinked bare URLs, and
+tables drawn as aligned box grids.
+
+Prose wraps to your terminal width, capped at 100 columns. Code blocks and
+tables are never re-flowed — they are pre-formatted, so the terminal clips them
+horizontally instead.
 
 ## Development
 
-Build and run without installing:
-
 ```sh
-mvn package
-./mdviewer path/to/file.md
+go test ./...
+go run ./cmd/md-viewer README.md
 ```
 
-## Key bindings
+## Requirements
 
-| Key         | Action                              |
-|-------------|-------------------------------------|
-| `↑` / `↓`  | Scroll up / down                    |
-| `←` / `→`  | Previous / next file in same folder |
-| `Cmd+O`     | Open file via dialog                |
-| `Cmd+R`     | Reload current file                 |
-| `Cmd+W`     | Quit                                |
-| `Escape`    | Quit                                |
+- Go 1.26+ to build
+- macOS or Linux
+
+## History
+
+Versions before the Go rewrite were a Java Swing desktop app with a headless
+terminal fallback. The GUI is gone; the terminal path became the whole tool.
+See `ARCHITECTURE.md` for why.

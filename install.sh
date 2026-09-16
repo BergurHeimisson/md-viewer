@@ -1,36 +1,47 @@
 #!/bin/sh
-# install.sh — build and install mdViewer system-wide
+# install.sh — build and install md-viewer system-wide
 #
-# Installs to:
-#   /usr/local/lib/mdviewer/mdviewer.jar  (the fat JAR)
-#   /usr/local/bin/mdviewer               (symlink to the launcher script)
+# Installs a single static binary to /usr/local/bin/md-viewer.
+# No PATH or shell configuration is needed afterwards.
 #
-# Requires: Java 25+, Maven 3.6+
-# Uninstall: sudo rm -rf /usr/local/lib/mdviewer /usr/local/bin/mdviewer
+# Requires: Go 1.26+
+# Uninstall: sudo rm -f /usr/local/bin/md-viewer
 
 set -e
 
-LIB_DIR="/usr/local/lib/mdviewer"
 BIN_DIR="/usr/local/bin"
+BIN_NAME="md-viewer"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-echo "==> Building mdViewer..."
 cd "$SCRIPT_DIR"
-mvn -q package
+
+if ! command -v go > /dev/null 2>&1; then
+    echo "install.sh: Go is not installed or not on PATH." >&2
+    echo "  macOS:  brew install go" >&2
+    echo "  Linux:  https://go.dev/dl/" >&2
+    exit 1
+fi
+
+# Tag the binary with the current commit so --version is meaningful.
+VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+
+echo "==> Building $BIN_NAME $VERSION..."
+go build -trimpath -ldflags "-s -w -X main.Version=$VERSION" \
+    -o "$SCRIPT_DIR/$BIN_NAME" ./cmd/md-viewer
 
 # Prompt once with a clear label; subsequent sudo calls reuse the cached token
 sudo -v -p "Root Password: "
 
-echo "==> Installing to $LIB_DIR..."
-sudo mkdir -p "$LIB_DIR"
-sudo cp target/mdviewer.jar "$LIB_DIR/mdviewer.jar"
-sudo cp mdviewer "$LIB_DIR/mdviewer"
-sudo chmod +x "$LIB_DIR/mdviewer"
-
-echo "==> Linking to $BIN_DIR/mdviewer..."
+echo "==> Installing to $BIN_DIR/$BIN_NAME..."
 sudo mkdir -p "$BIN_DIR"
-sudo ln -sf "$LIB_DIR/mdviewer" "$BIN_DIR/mdviewer"
+sudo install -m 755 "$SCRIPT_DIR/$BIN_NAME" "$BIN_DIR/$BIN_NAME"
+
+# Clean up the Java install if it is still around from a previous version.
+if [ -e "/usr/local/bin/mdviewer" ] || [ -d "/usr/local/lib/mdviewer" ]; then
+    echo "==> Removing the old Java mdviewer install..."
+    sudo rm -rf /usr/local/lib/mdviewer /usr/local/bin/mdviewer
+fi
 
 echo ""
-echo "Done. Run:  mdviewer path/to/file.md"
-echo "Uninstall: sudo rm -rf $LIB_DIR $BIN_DIR/mdviewer"
+echo "Done. Run:  $BIN_NAME path/to/file.md"
+echo "Uninstall: sudo rm -f $BIN_DIR/$BIN_NAME"
