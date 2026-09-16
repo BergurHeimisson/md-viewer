@@ -1,12 +1,13 @@
 #!/bin/sh
 # install.sh — build and install md-viewer
 #
-# Installs a single static binary. By default that is /usr/local/bin, which
-# needs sudo; --user installs into your Go bin directory instead and needs no
-# password, which is what to reach for when sudo has no terminal to prompt on.
+# Installs a single static binary. By default that is your Go bin directory,
+# which needs no password and is where `go install` already puts things — so a
+# later `go build` cannot leave a second, older copy earlier in PATH shadowing
+# this one. --system installs to /usr/local/bin instead and needs sudo.
 #
-#   ./install.sh           system-wide, /usr/local/bin/md-viewer
-#   ./install.sh --user    per-user, $(go env GOBIN) or $(go env GOPATH)/bin
+#   ./install.sh           per-user, $(go env GOBIN) or $(go env GOPATH)/bin
+#   ./install.sh --system  system-wide, /usr/local/bin/md-viewer
 #
 # Requires: Go 1.26+
 
@@ -14,7 +15,7 @@ set -e
 
 BIN_NAME="md-viewer"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-USER_INSTALL=0
+USER_INSTALL=1
 
 usage() {
     # Print the header comment block, minus the shebang, and stop at the
@@ -25,6 +26,7 @@ usage() {
 for arg in "$@"; do
     case "$arg" in
         --user) USER_INSTALL=1 ;;
+        --system) USER_INSTALL=0 ;;
         -h|--help) usage; exit 0 ;;
         *)
             echo "install.sh: unknown option: $arg" >&2
