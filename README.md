@@ -28,9 +28,13 @@ tells you if the directory is not on your `PATH`.
 **Uninstall:**
 
 ```sh
-sudo rm -f /usr/local/bin/md-viewer   # system install
-rm -f "$(go env GOPATH)/bin/md-viewer"  # --user install
+./uninstall.sh
 ```
+
+Finds every install this project could have created — system, `--user`, and
+the old Java `mdviewer` — lists them, and asks before removing anything. Paths
+you own are removed directly; only the root-owned ones ask for a password.
+`--legacy` removes just the old Java install, `--yes` skips the prompt.
 
 ## Usage
 

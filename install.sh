@@ -17,7 +17,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 USER_INSTALL=0
 
 usage() {
-    sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+    # Print the header comment block, minus the shebang, and stop at the
+    # first line that is not a comment.
+    awk 'NR > 1 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0"
 }
 
 for arg in "$@"; do
